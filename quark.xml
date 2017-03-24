@@ -1,15 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
-<project path="device/motorola/quark"
-name="CyanogenMod/android_device_motorola_quark"
-revision="stable/cm-13.0-ZNH5Y" />
-<project path="kernel/motorola/apq8084"
-name="CyanogenMod/android_kernel_motorola_apq8084"
-revision="stable/cm-13.0-ZNH5Y" />
-<project path="rpm/"
-name="hexc0de/droid-hal-quark" revision="master" />
-<project path="hybris/droid-configs"
-name="hexc0de/droid-config-quark" revision="master" />
-<project path="hybris/droid-hal-version-quark"
-name="hexc0de/droid-hal-version-quark" revision="master" />
+<project path="device/motorola/quark" name="CyanogenMod/android_device_motorola_quark" revision="stable/cm-13.0-ZNH5Y" />
+<project path="kernel/motorola/apq8084" name="CyanogenMod/android_kernel_motorola_apq8084" revision="stable/cm-13.0-ZNH5Y" />
+<project path="rpm/" name="hexc0de/droid-hal-quark" revision="master" />
+<project path="hybris/droid-configs" name="hexc0de/droid-config-quark" revision="master" />
+<project path="hybris/droid-hal-version-quark" name="hexc0de/droid-hal-version-quark" revision="master" />
 </manifest>
