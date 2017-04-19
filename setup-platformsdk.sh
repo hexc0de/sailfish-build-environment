@@ -15,8 +15,8 @@ ln -s $SCRIPTPATH/.mersdkubu.profile ~/.mersdkubu.profile
 source ~/.hadk.env
 
 mkdir -p $MER_TMPDIR
-#mkdir -p $ANDROID_ROOT/.repo/local_manifests
-cp $SCRIPTPATH/cancro_local_manifest.xml $ANDROID_ROOT/.repo/local_manifests/cancro.xml
+mkdir -p $ANDROID_ROOT/.repo/local_manifests
+cp $SCRIPTPATH/quark.xml $ANDROID_ROOT/.repo/local_manifests/quark.xml
 
 #Download Setup MER SDK
 cd $MER_TMPDIR
