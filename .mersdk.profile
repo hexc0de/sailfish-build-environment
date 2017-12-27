@@ -4,7 +4,7 @@ hadk
 alias enter_habuildsdk="ubu-chroot -r $HABUILD_ROOT"
 alias enter_scratchbox="sb2 -t $VENDOR-$DEVICE-$PORT_ARCH -m sdk-install -R"
 
-PS1="MerSDK $PS1"
+PS1="PlatformSDK $PS1"
 
 #TODO add error checks
 
