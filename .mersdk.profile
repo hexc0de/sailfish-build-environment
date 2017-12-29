@@ -16,15 +16,25 @@ popd () {
   command popd "$@" > /dev/null
 }
 
+die () {
+  if [ -z "$*" ]; then
+    echo "command failed at `date`, dying..."
+  else
+    echo "$*"
+  fi
+  exit 1
+}
+
+
 function setup_ubuntuchroot {
   mkdir -p $MER_TMPDIR
   pushd $MER_TMPDIR
   TARBALL=ubuntu-trusty-android-rootfs.tar.bz2
-  curl -k -O -C - http://img.merproject.org/images/mer-hybris/ubu/$TARBALL
+  curl -k -O -C - http://img.merproject.org/images/mer-hybris/ubu/$TARBALL || die "Error downloading ubuntu rootfs"
   sudo rm -rf $HABUILD_ROOT
   sudo mkdir -p $HABUILD_ROOT
   sudo tar --numeric-owner -xvjf $TARBALL -C $HABUILD_ROOT
-  ubu-chroot -r $HABUILD_ROOT /bin/bash -c "echo Installing useful tools && sudo apt-get update && sudo apt-get install unzip silversearcher-ag"
+  ubu-chroot -r $HABUILD_ROOT /bin/bash -c "echo Installing useful tools && sudo apt-get update && sudo apt-get install -y rsync vim unzip silversearcher-ag bsdmainutils openjdk-7-jdk && sudo update-java-alternatives -s java-1.7.0-openjdk-amd64"
   popd
 }
 
@@ -43,29 +53,8 @@ function setup_scratchbox {
   mkdir -p $MER_TMPDIR
   pushd $MER_TMPDIR
 
-  SFE_SB2_TARGET=$MER_ROOT/targets/$VENDOR-$DEVICE-$PORT_ARCH
-  TARBALL_URL=http://releases.sailfishos.org/sdk/latest/targets/targets.json
-  TARBALL=$(curl $TARBALL_URL | grep "$PORT_ARCH.tar.bz2" | cut -d\" -f4 | grep $PORT_ARCH | head -n 1)
-
-  echo "Downloading: " $TARBALL
-  rm $(basename $TARBALL)
-  curl -O $TARBALL
-
-  sudo rm -rf $SFE_SB2_TARGET
-  sudo mkdir -p $SFE_SB2_TARGET
-  sudo tar --numeric-owner -pxjf $(basename $TARBALL) -C $SFE_SB2_TARGET
-
-  sudo chown -R $USER $SFE_SB2_TARGET
-
-  cd $SFE_SB2_TARGET
-  grep :$(id -u): /etc/passwd >> etc/passwd
-  grep :$(id -g): /etc/group >> etc/group
-
-  sb2-init -d -L "--sysroot=/" -C "--sysroot=/" -c /usr/bin/qemu-arm-dynamic -m sdk-build -n -N -t / $VENDOR-$DEVICE-$PORT_ARCH /opt/cross/bin/$PORT_ARCH-meego-linux-gnueabi-gcc
-
-  sb2 -t $VENDOR-$DEVICE-$PORT_ARCH -m sdk-install -R rpm --rebuilddb
-  sb2 -t $VENDOR-$DEVICE-$PORT_ARCH -m sdk-install -R zypper ar -G http://repo.merproject.org/releases/mer-tools/rolling/builds/$PORT_ARCH/packages/ mer-tools-rolling
-  sb2 -t $VENDOR-$DEVICE-$PORT_ARCH -m sdk-install -R zypper ref --force
+  sdk-assistant create SailfishOS-latest http://releases.sailfishos.org/sdk/latest/Jolla-latest-Sailfish_SDK_Tooling-i486.tar.bz2
+  sdk-assistant create $VENDOR-$DEVICE-$PORT_$ARCH http://releases.sailfishos.org/sdk/latest/Jolla-latest-Sailfish_SDK_Target-armv7hl.tar.bz2
 
   popd
 }
@@ -94,7 +83,26 @@ function build_hybrishal {
 }
 
 function build_package {
-  $ANDROID_ROOT/rpm/dhd/helpers/build_packages.sh --build=$1
+  PKG_PATH=`readlink -e $1`
+  shift
+  pushd $PKG_PATH
+  SPECS=$1
+  if [ -z "$SPECS" ]; then
+    echo "No spec file for package building specified, building all I can find."
+    SPECS="rpm/*.spec"
+  fi
+  for SPEC in $SPECS ; do
+    minfo "Building $SPEC"
+    mb2 -s $SPEC -t $VENDOR-$DEVICE-$PORT_ARCH build || die "Error building package $1"
+  done
+
+  PKG=`basename $PKG_PATH`
+  mkdir -p "$ANDROID_ROOT/droid-local-repo/$DEVICE/$PKG"
+  rm -f "$ANDROID_ROOT/droid-local-repo/$DEVICE/$PKG/"*.rpm
+  mv RPMS/*.rpm "$ANDROID_ROOT/droid-local-repo/$DEVICE/$PKG"
+  echo "Packages Built:"
+  ls $ANDROID_ROOT/droid-local-repo/$DEVICE/$PKG/
+  popd
 }
 
 function build_packages {
@@ -102,7 +110,7 @@ function build_packages {
 
   rpm/dhd/helpers/build_packages.sh $@
   rpm/dhd/helpers/build_packages.sh --mw="https://git.merproject.org/kimmoli/pulseaudio-policy-enforcement.git"
-#  rpm/dhd/helpers/build_packages.sh --mw="https://git.merproject.org/mer-core/qt-mobility-haptics-ffmemless.git"
+  rpm/dhd/helpers/build_packages.sh --mw="https://git.merproject.org/mer-core/qt-mobility-haptics-ffmemless.git"
 
   popd
 }
@@ -144,7 +152,7 @@ function build_audioflingerglue {
   PKG_REPO=https://github.com/mer-hybris/pulseaudio-modules-droid-glue.git
   PKG=`basename $PKG_REPO .git`
 
-  fetch_mw $PKG_REPO
+  fetch_mw $PKG_REPO || die "Unable to fetch $PKG_REPO"
   #pushd $HYBRIS_MW_ROOT/$PKG
   #curl http://pastebin.com/raw/H8U5nSNm -o pulseaudio-modules-droid-glue.patch
   #patch -p1 < pulseaudio-modules-droid-glue.patch
@@ -156,8 +164,7 @@ function build_audioflingerglue {
 }
 
 function build_gstdroid {
-  ubu-chroot -r $HABUILD_ROOT /bin/bash -c "echo Building audioflingerglue && cd $ANDROID_ROOT && source build/envsetup.sh && breakfast $DEVICE && make -j8 libcameraservice libdroidmedia minimediaservice minisfservice"
-  
+  ubu-chroot -r $HABUILD_ROOT /bin/bash -c "echo Building gstdroid && cd $MER_ROOT/android/droid && source build/envsetup.sh && breakfast $DEVICE && make -j8 libcameraservice libdroidmedia minimediaservice minisfservice"
   pushd $ANDROID_ROOT
 
   PKG_PATH=$HYBRIS_MW_ROOT/droidmedia-localbuild
@@ -181,30 +188,37 @@ function build_gstdroid {
 function generate_kickstart {
   pushd $ANDROID_ROOT
 
-  hybris/droid-configs/droid-configs-device/helpers/process_patterns.sh
+  rpm/dhd/helpers/build_packages.sh --configs
 
   mkdir -p tmp
   KS="Jolla-@RELEASE@-$DEVICE-@ARCH@.ks"
+  KS_PATH=$ANDROID_ROOT/tmp/$KS
 
-  cp $ANDROID_ROOT/hybris/droid-configs/installroot/usr/share/kickstarts/$KS $ANDROID_ROOT/tmp/$KS
+  cp $ANDROID_ROOT/hybris/droid-configs/installroot/usr/share/kickstarts/$KS $KS_PATH
 
-  #By default we have a kickstart file which points to devel repos. Using this switch we can switch to local/testing repos
-  if [[ "$#" -eq 1 && $1 == "local" ]]; then
-    HA_REPO="repo --name=adaptation-community-common-$DEVICE-@RELEASE@"
-    HA_DEV="repo --name=adaptation-community-$DEVICE-@RELEASE@"
-    sed "s|$HA_REPO|i$HA_DEV --baseurl=file://$ANDROID_ROOT/droid-local-repo/$DEVICE|" $ANDROID_ROOT/hybris/droid-configs/installroot/usr/share/kickstarts/$KS > $ANDROID_ROOT/tmp/$KS
-  elif [[ "$#" -eq 1  && $1 == "release" ]]; then
-    #Adding our OBS repo
-    sed -i -e "s/nemo\:\/devel/nemo\:\/testing/g" $ANDROID_ROOT/tmp/$KS
-    sed -i -e "s/sailfish_latest_@ARCH@\//sailfishos_@RELEASE@\//g" $ANDROID_ROOT/tmp/$KS
+  #By default we make the kickstart file point to devel repos.
+  HA_REPO="repo --name=adaptation-community-$DEVICE-@RELEASE@"
+  HA_REPO_COMMON="repo --name=adaptation-community-common-$DEVICE-@RELEASE@"
+  if ! grep -q "$HA_REPO" $KS_PATH; then
+    echo "Adding devel repo to the kick start"
+    sed -i -e "s|^$HA_REPO_COMMON|$HA_REPO --baseurl=http://repo.merproject.org/obs/nemo:/devel:/hw:/$VENDOR:/$DEVICE/sailfish_latest_@ARCH@/\n$HA_REPO_COMMON|" $KS_PATH
   fi
 
-  sed -i -e "s|@Jolla Configuration $DEVICE|@Jolla Configuration $DEVICE\njolla-email\nsailfish-weather\njolla-calculator\njolla-notes\njolla-calendar\nsailfish-office\nharbour-poor-maps|"  $ANDROID_ROOT/tmp/$KS
+  #Using this switch we can switch to local/testing repos
+  if [[ "$#" -eq 1 && $1 == "local" ]]; then
+    sed -i -e "s|^$HA_REPO.*$|$HA_REPO --baseurl=file://$ANDROID_ROOT/droid-local-repo/$DEVICE|" $KS_PATH
+  elif [[ "$#" -eq 1  && $1 == "release" ]]; then
+    #Adding our OBS repo
+    sed -i -e "s/nemo\:\/devel/nemo\:\/testing/g" $KS_PATH
+    sed -i -e "s/sailfish_latest_@ARCH@\//sailfishos_@RELEASE@\//g" $KS_PATH
+  fi
+
+  sed -i -e "s|@Jolla Configuration $DEVICE|@Jolla Configuration $DEVICE\njolla-email\nsailfish-weather\njolla-calculator\njolla-notes\njolla-calendar\nsailfish-office\nharbour-poor-maps|"  $KS_PATH
 
   #Hacky workaround for droid-hal-init starting before /system partition is mounted
-  #sed -i '/%post$/a sed -i \"s;WantedBy;RequiredBy;g\"  \/lib\/systemd\/system\/system.mount' $ANDROID_ROOT/tmp/$KS
-  #sed -i '/%post$/a echo \"RequiredBy=droid-hal-init.service\" >> \/lib\/systemd\/system\/local-fs.target' $ANDROID_ROOT/tmp/$KS
-  #sed -i '/%post$/a echo \"[Install]\" >> \/lib\/systemd\/system\/local-fs.target' $ANDROID_ROOT/tmp/$KS
+  #sed -i '/%post$/a sed -i \"s;WantedBy;RequiredBy;g\"  \/lib\/systemd\/system\/system.mount' $KS_PATH
+  #sed -i '/%post$/a echo \"RequiredBy=droid-hal-init.service\" >> \/lib\/systemd\/system\/local-fs.target' $KS_PATH
+  #sed -i '/%post$/a echo \"[Install]\" >> \/lib\/systemd\/system\/local-fs.target' $KS_PATH
 
   popd
 }
@@ -256,6 +270,9 @@ function update_sdk {
       sb2 -t $VENDOR-$DEVICE-$PORT_ARCH -R -msdk-install zypper dup
       sudo zypper ref
       sudo zypper dup
+      sudo ssu re $SAILFISH_VERSION
+      sudo zypper ref
+      sudo zypper dup
     fi
   fi
 }
@@ -265,10 +282,14 @@ function setup_obsenv {
   then
      sudo mkdir $OBS_ROOT
      sudo chown $USER $OBS_ROOT
+     pushd $OBS_ROOT
      echo ""
      echo " Make yourself familier with setting up .oscrc"
      echo " https://wiki.merproject.org/wiki/Building_against_Mer_in_Community_OBS#Setup_.oscrc"
      echo ""
+     osc -A https://api.merproject.org/ ls mer-tools:testing
+     osc co nemo:devel:hw:$VENDOR:$DEVICE
+     popd
   fi
 }
 
