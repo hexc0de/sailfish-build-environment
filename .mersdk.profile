@@ -102,7 +102,7 @@ function build_packages {
 
   rpm/dhd/helpers/build_packages.sh $@
   rpm/dhd/helpers/build_packages.sh --mw="https://git.merproject.org/kimmoli/pulseaudio-policy-enforcement.git"
-  rpm/dhd/helpers/build_packages.sh --mw="https://git.merproject.org/mer-core/qt-mobility-haptics-ffmemless.git"
+#  rpm/dhd/helpers/build_packages.sh --mw="https://git.merproject.org/mer-core/qt-mobility-haptics-ffmemless.git"
 
   popd
 }
@@ -156,7 +156,8 @@ function build_audioflingerglue {
 }
 
 function build_gstdroid {
-  ubu-chroot -r $HABUILD_ROOT /bin/bash -c "echo Building gstdroid && cd $MER_ROOT/android/droid && source build/envsetup.sh && breakfast $DEVICE && make -j8 libcameraservice libdroidmedia minimediaservice minisfservice"
+  ubu-chroot -r $HABUILD_ROOT /bin/bash -c "echo Building audioflingerglue && cd $ANDROID_ROOT && source build/envsetup.sh && breakfast $DEVICE && make -j8 libcameraservice libdroidmedia minimediaservice minisfservice"
+  
   pushd $ANDROID_ROOT
 
   PKG_PATH=$HYBRIS_MW_ROOT/droidmedia-localbuild
@@ -189,8 +190,9 @@ function generate_kickstart {
 
   #By default we have a kickstart file which points to devel repos. Using this switch we can switch to local/testing repos
   if [[ "$#" -eq 1 && $1 == "local" ]]; then
-    HA_REPO="repo --name=adaptation-community-$DEVICE-@RELEASE@"
-    sed -i -e "s|^$HA_REPO.*$|$HA_REPO --baseurl=file://$ANDROID_ROOT/droid-local-repo/$DEVICE|" $ANDROID_ROOT/tmp/$KS
+    HA_REPO="repo --name=adaptation-community-common-$DEVICE-@RELEASE@"
+    HA_DEV="repo --name=adaptation-community-$DEVICE-@RELEASE@"
+    sed "s|$HA_REPO|i$HA_DEV --baseurl=file://$ANDROID_ROOT/droid-local-repo/$DEVICE|" $ANDROID_ROOT/hybris/droid-configs/installroot/usr/share/kickstarts/$KS > $ANDROID_ROOT/tmp/$KS
   elif [[ "$#" -eq 1  && $1 == "release" ]]; then
     #Adding our OBS repo
     sed -i -e "s/nemo\:\/devel/nemo\:\/testing/g" $ANDROID_ROOT/tmp/$KS

@@ -16,7 +16,7 @@ source ~/.hadk.env
 
 mkdir -p $MER_TMPDIR
 #mkdir -p $ANDROID_ROOT/.repo/local_manifests
-cp $SCRIPTPATH/cancro_local_manifest.xml $ANDROID_ROOT/.repo/local_manifests/cancro.xml
+# cp $SCRIPTPATH/cancro_local_manifest.xml $ANDROID_ROOT/.repo/local_manifests/cancro.xml
 
 #Download Setup MER SDK
 cd $MER_TMPDIR
