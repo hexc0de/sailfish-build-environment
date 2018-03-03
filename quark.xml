@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
 <project path="device/motorola/quark" name="hexc0de/android_device_motorola_quark" revision="stable/cm-12.1-YOG7D" />
-<project path="kernel/motorola/apq8084" name="hexc0de/android_kernel_motorola_apq8084" revision="stable/cm-12.1-YOG7D" />
+<project path="kernel/motorola/apq8084" name="hexc0de/android_kernel_motorola_apq8084" revision="hybris-12.1" />
 <project path="rpm/" name="hexc0de/droid-hal-quark" revision="master" />
 <project path="hybris/droid-configs" name="hexc0de/droid-config-quark" revision="master" />
 <project path="hybris/droid-hal-version-quark" name="hexc0de/droid-hal-version-quark" revision="master" />
